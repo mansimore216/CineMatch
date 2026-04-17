@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CineMatch – Movie Recommender</title>
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+
+  <!-- Google Fonts: Bebas Neue (display) + DM Sans (body) -->
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=2">
+</head>
+<body>
+
+  <!-- ===================== HERO HEADER ===================== -->
+  <header class="site-header">
+    <div class="header-bg"></div>
+    <div class="header-content">
+      <div class="logo-badge">🎬</div>
+      <h1 class="site-title">CineMatch</h1>
+      <p class="site-subtitle">AI-powered movie recommendations tailored to your taste</p>
+    </div>
+  </header>
+
+  <!-- ===================== MAIN SECTION ===================== -->
+  <main class="main-section">
+    <div class="container">
+
+      <!-- Search Card -->
+      <div class="search-card">
+        <p class="search-label">Choose a movie you love</p>
+
+        <!-- Movie Dropdown -->
+        <div class="search-row">
+          <div class="select-wrapper">
+            <select id="movieSelect" class="movie-select">
+              <option value="" disabled selected>— Search or select a movie —</option>
+              {% for movie in movies %}
+                <option value="{{ movie }}">{{ movie }}</option>
+              {% endfor %}
+            </select>
+            <span class="select-arrow">▾</span>
+          </div>
+
+          <!-- Recommend Button -->
+          <button id="recommendBtn" type="button" class="recommend-btn">
+            <span class="btn-text">Find Movies</span>
+            <span class="btn-icon">→</span>
+          </button>
+        </div>
+
+        <!-- Error message area -->
+        <p id="errorMsg" class="error-msg" style="display:none;"></p>
+      </div>
+
+      <!-- ===================== RESULTS SECTION ===================== -->
+      <section id="resultsSection" style="display:none;">
+        <div class="results-header">
+          <h2 class="results-title">Because you liked <span id="selectedMovieName" class="highlight-text"></span></h2>
+          <p class="results-sub">Here are 5 movies you'll probably love</p>
+        </div>
+
+        <!-- Movie Cards Grid -->
+        <div id="movieCards" class="movies-grid">
+          <!-- Cards injected by JavaScript -->
+        </div>
+      </section>
+
+      <!-- ===================== LOADING SPINNER ===================== -->
+      <div id="loadingSpinner" class="loading-wrap" style="display:none;">
+        <div class="spinner-ring"></div>
+        <p class="loading-text">Fetching recommendations…</p>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ===================== FOOTER ===================== -->
+  <footer class="site-footer">
+    <p>Built with Flask + scikit-learn + TMDB API &nbsp;|&nbsp; <span class="footer-accent">CineMatch</span></p>
+  </footer>
+
+  <!-- Bootstrap JS -->
+  <script src="${posters?.[index] || 'https://via.placeholder.com/500x750?text=No+Poster'}"></script>
+
+  <!-- ===================== MAIN JAVASCRIPT ===================== -->
+  <script>
+  document.addEventListener("DOMContentLoaded", function () {
+
+    /**
+     * getRecommendations()
+     */
+    async function getRecommendations() {
+      const select = document.getElementById("movieSelect");
+      const selectedMovie = select.value;
+
+      // Validate selection
+      if (!selectedMovie) {
+        showError("Please select a movie first.");
+        return;
+      }
+
+      hideError();
+      showLoading(true);
+      hideResults();
+
+      try {
+        const response = await fetch("/recommend", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ movie: selectedMovie })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          showError(data.error || "Something went wrong. Please try again.");
+          showLoading(false);
+          return;
+        }
+
+        renderCards(data.movies, data.posters, selectedMovie);
+
+      } catch (err) {
+        showError("Network error. Make sure the server is running.");
+        console.error(err);
+      }
+
+      showLoading(false);
+    }
+
+    /**
+     * renderCards()
+     */
+    function renderCards(movies, posters, selectedMovie) {
+      const grid = document.getElementById("movieCards");
+      const section = document.getElementById("resultsSection");
+      const nameSpan = document.getElementById("selectedMovieName");
+
+      nameSpan.textContent = selectedMovie;
+      grid.innerHTML = "";
+
+      movies.forEach((title, index) => {
+        const card = document.createElement("div");
+        card.className = "movie-card";
+        card.style.animationDelay = `${index * 0.1}s`;
+
+        card.innerHTML = `
+          <div class="card-poster-wrap">
+            <img
+              src="${posters[index]}"
+              alt="${title}"
+              class="card-poster"
+              onerror="this.src='https://via.placeholder.com/500x750/1a1a2e/e94560?text=No+Poster'"
+            />
+            <div class="card-overlay">
+              <span class="card-play">▶</span>
+            </div>
+          </div>
+          <div class="card-info">
+            <p class="card-rank">#${index + 1}</p>
+            <h3 class="card-title">${title}</h3>
+          </div>
+        `;
+
+        grid.appendChild(card);
+      });
+
+      section.style.display = "block";
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    // ---- Utility helpers ----
+
+    function showError(msg) {
+      const el = document.getElementById("errorMsg");
+      el.textContent = msg;
+      el.style.display = "block";
+    }
+
+    function hideError() {
+      document.getElementById("errorMsg").style.display = "none";
+    }
+
+    function showLoading(state) {
+      document.getElementById("loadingSpinner").style.display = state ? "flex" : "none";
+      const btn = document.getElementById("recommendBtn");
+      btn.disabled = state;
+      btn.querySelector(".btn-text").textContent = state ? "Loading…" : "Find Movies";
+    }
+
+    function hideResults() {
+      document.getElementById("resultsSection").style.display = "none";
+    }
+
+    // ✅ FIX: attach event AFTER DOM loads
+    document.getElementById("recommendBtn").addEventListener("click", getRecommendations);
+
+    // Enter key support
+    document.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") getRecommendations();
+    });
+
+  });
+</script>
+  
+
+</body>
+</html>
