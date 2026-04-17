@@ -6,6 +6,7 @@ from flask import Flask, request, jsonify, render_template
 import pickle
 import requests
 from concurrent.futures import ThreadPoolExecutor
+import joblib
 
 # ============================================================
 # INIT
@@ -24,8 +25,8 @@ DEFAULT_POSTER = "https://via.placeholder.com/500x750/1a1a2e/e94560?text=No+Post
 # LOAD DATA
 # ============================================================
 
-movies = pickle.load(open("movies.pkl", "rb"))
-similarity = pickle.load(open("similarity.pkl", "rb"))
+movies = joblib.load("movies.joblib")
+similarity = joblib.load("similarity.joblib")
 
 # ============================================================
 # POSTER CACHE + FETCH FUNCTION
@@ -126,4 +127,8 @@ def recommend_movies():
 # ============================================================
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    import os
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 7860))
+    app.run(host="0.0.0.0", port=port)
