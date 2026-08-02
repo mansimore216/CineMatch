@@ -5,7 +5,7 @@ CineMatch is a content-based movie recommendation web app that suggests similar 
 ---
 
 ## 🚀 Live Demo
-(Add deployed link here later)
+https://huggingface.co/spaces/mansii07/movie_recommedation_system
 
 ---
 
